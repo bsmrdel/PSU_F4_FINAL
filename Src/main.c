@@ -110,29 +110,24 @@ int raw_tempsense_value = 0; //12b value from adc for TempSense
 float farh = 0;
 int max_trans_current = 0;
 
-//brad's buck converter variables
 int raw_voltage = 0;            //12b value from adc for vsense
 int raw_current = 0;            //12b value from adc for isense
-float pwm_val = 0;			//PWM value for duty cycle adjustment to gate driver
-float v_sense = 0;			//buck output voltage sense
-float i_sense = 0;			//buck output current sense
-float rload = 0;            //buck calculated load from v_sense & i_sense
-float pid_error = 0;		//difference from target v or i and sensed v or i
-int user_en = 1;            //output enable flag
-//float i_lim = 0.010;        //user selected current limit @elliott
-//float v_lim = 3;            //user selected voltage limit @elliott
-float i_lim = 0;        //user selected current limit @elliott  made changes and uses actuall set limit
-float v_lim = 0;           //user selected voltage limit @elliott made changes
+float pwm_val = 0;				//PWM value for duty cycle adjustment to gate driver
+float v_sense = 0;				//buck output voltage sense
+float i_sense = 0;				//buck output current sense
+float rload = 0;            	//buck calculated load from v_sense & i_sense
+float pid_error = 0;			//difference from target v or i and sensed v or i
+int user_en = 1;            	//output enable flag
+float i_lim = 0;        		//user selected current limit @elliott  made changes and uses actuall set limit
+float v_lim = 0;           		//user selected voltage limit @elliott made changes
 
-float v_sense_avg = 0;		//moving average val of v_sense
-float i_sense_avg = 0;		//moving average val of i_sense
+float v_sense_avg = 0;			//moving average val of v_sense
+float i_sense_avg = 0;			//moving average val of i_sense
 float farh_average = 0;
-
 
 int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
-//int cv_cc = 1;				//constant voltage = 1, constant current = 0 (modes of operation)
-int cvcc_flag = 0;
+int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
 float PID_Kp = 400;             //proportional gain
 float PID_Ki = 0.001;           //integral gain
@@ -202,7 +197,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 	if( htim -> Instance ==TIM3){
 		HAL_GPIO_TogglePin(LD4_GPIO_Port,LD4_Pin);
-		//printf("eatassbitch\r\n");
 		//printf("vd1.val=%d%c%c%c",1,255,255,255);
 		//printtoscreen();
 
@@ -275,8 +269,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
 	while (1)
 	{
-//		printf("eatass\r\n");
-//		HAL_Delay(500);
 		//User Interface
 		OutputEnable(error_voltage,error_current,error_temp);	//Output enable function, error parameters can be used to send error signal to disable output
 		getVoltage_limit();
@@ -298,8 +290,6 @@ int main(void)
 		getTemp();
 		max_trans();  		//Checks and displays max transient current when OE is pressed.
 		FanPWM();
-
-
 
     /* USER CODE END WHILE */
 
@@ -560,7 +550,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 0;
+  sBreakDeadTimeConfig.DeadTime = 5;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
