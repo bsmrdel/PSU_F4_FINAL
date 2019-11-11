@@ -36,6 +36,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
+arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 
 /* USER CODE END PTD */
 
@@ -229,6 +230,12 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+
+  PID.Kp = PID_Kp;
+  PID.Ki = PID_Ki;
+  PID.Kd = PID_Kd;
+
+  arm_pid_init_f32(&PID, 1);
 
   /* USER CODE END Init */
 
@@ -731,11 +738,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitTypeDef GPIO_InitStruct = {0};
 
   /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOH_CLK_ENABLE();
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
-  __HAL_RCC_GPIOE_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -745,7 +752,13 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(GPIOE, Output_enable_LED_Pin|CC_LED_Pin|CV_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : PE5 PE6 Overvoltage_SFTY_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6|Overvoltage_SFTY_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pin : OTG_FS_PowerSwitchOn_Pin */
   GPIO_InitStruct.Pin = OTG_FS_PowerSwitchOn_Pin;
@@ -766,12 +779,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BOOT1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : Overvoltage_SFTY_Pin */
-  GPIO_InitStruct.Pin = Overvoltage_SFTY_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(Overvoltage_SFTY_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pins : Output_enable_LED_Pin CC_LED_Pin CV_LED_Pin */
   GPIO_InitStruct.Pin = Output_enable_LED_Pin|CC_LED_Pin|CV_LED_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -779,18 +786,18 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : Current_Decimal_OFF_Pin Current_Decimal_ON_Pin Output_Enable_ON_Pin Output_Enable_OFF_Pin 
+  /*Configure GPIO pins : Current_Decimal_OFF_Pin Current_Decimal_ON_Pin Output_Enable_OFF_Pin Output_Enable_ON_Pin 
                            Voltage_Decimal_OFF_Pin Voltage_Decimal_ON_Pin Max_transient_Reset_OFF_Pin Max_transient_Reset_ON_Pin 
                            Current_Encoder_B_Pin Current_Encoder_A_Pin */
-  GPIO_InitStruct.Pin = Current_Decimal_OFF_Pin|Current_Decimal_ON_Pin|Output_Enable_ON_Pin|Output_Enable_OFF_Pin 
+  GPIO_InitStruct.Pin = Current_Decimal_OFF_Pin|Current_Decimal_ON_Pin|Output_Enable_OFF_Pin|Output_Enable_ON_Pin 
                           |Voltage_Decimal_OFF_Pin|Voltage_Decimal_ON_Pin|Max_transient_Reset_OFF_Pin|Max_transient_Reset_ON_Pin 
                           |Current_Encoder_B_Pin|Current_Encoder_A_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : LD4_Pin LD3_Pin LD5_Pin LD6_Pin */
-  GPIO_InitStruct.Pin = LD4_Pin|LD3_Pin|LD5_Pin|LD6_Pin;
+  /*Configure GPIO pins : LD4_Pin LD3_Pin */
+  GPIO_InitStruct.Pin = LD4_Pin|LD3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -1154,13 +1161,7 @@ void max_trans(void){
 }
 
 void PIDsetBuckPWM(void){
-	arm_pid_instance_f32 PID;	//ARM PID instance float 32b
 
-	PID.Kp = PID_Kp;
-	PID.Ki = PID_Ki;
-	PID.Kd = PID_Kd;
-
-	arm_pid_init_f32(&PID, 1);
 
 	if(cvcc_flag == 1){	//if in CV mode
 		pid_error = v_lim - v_sense_avg;
