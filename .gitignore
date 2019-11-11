@@ -1,0 +1,9 @@
+/*
+!/Src/
+!/Src/*
+!/Inc/
+!/Inc/*
+!*.ioc
+!.gitignore
+!*.bat
+!TraceRecorder/
