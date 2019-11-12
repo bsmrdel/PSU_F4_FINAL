@@ -44,14 +44,14 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 /* USER CODE BEGIN PD */
 #define VOLT_DIV_FACTOR		0.0595 	// assuming R1 = 16.4k and R2 = 1k (3V / 0.595 = 50.4)
 									// this is still dependent on resistor tolerances
-#define CURR_DIV_FACTOR 	0.5	// CSA gain is 0.5V/A, ref to 3V...
+#define CURR_DIV_FACTOR 	0.5		// CSA gain is 0.5V/A, ref to 3V...
 									// 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
 
 
-#define VOLT_OFFSET			0		//CALIBRATE
-#define CURR_OFFSET			0	//CALIBRATE
-#define CURR_REF			3		//reference voltage for CSA, CALIBRATE THIS
-#define cc_hysterisis       0.01	//to prevent quick jumps b/w CC and CV modes
+#define VOLT_OFFSET			0		// CALIBRATE
+#define CURR_OFFSET			0		// CALIBRATE
+#define CURR_REF			3		// reference voltage for CSA, CALIBRATE THIS
+#define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
 #define N					100		// moving avg approx uses 100 past samples
 
 #define UNK                 -1
@@ -133,7 +133,7 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 250;             //proportional gain
+float PID_Kp = 300;             //proportional gain
 float PID_Ki = 0.002;           //integral gain
 float PID_Kd = 0;              //derivative gain
 
@@ -282,8 +282,8 @@ int main(void)
 		i_lim = User_Current_limit/100.0;
 
 		//temporary limit hardcoding for PID debug
-		v_lim = 12; 	//V
-		i_lim = 0.5; 	//A
+		//v_lim = 12; 	//V
+		//i_lim = 0.5; 	//A
 
 		//user end
 		senseADC();
@@ -1032,9 +1032,7 @@ void getI (void){
 
 void Print_Power (void){
 
-
 	Watts = v_sense_avg_int * i_sense_avg_int / 100;	//calculate power
-
 	return;
 }
 
