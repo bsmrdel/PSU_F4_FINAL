@@ -42,13 +42,17 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define VOLT_DIV_FACTOR		0.0445 		// assuming R1 = 16.4k and R2 = 1k
-#define CURR_DIV_FACTOR 	0.235	// CSA gain is 0.5V/A
-#define VOLT_OFFSET			0.3
-#define CURR_OFFSET			0.15
-#define CURR_REF			2.958		//reference voltage for CSA
-#define cc_hysterisis       0.01
-#define N					100			// moving avg approx uses 100 past samples
+#define VOLT_DIV_FACTOR		0.0595 	// assuming R1 = 16.4k and R2 = 1k (3V / 0.595 = 50.4)
+									// this is still dependent on resistor tolerances
+#define CURR_DIV_FACTOR 	0.5	// CSA gain is 0.5V/A, ref to 3V...
+									// 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
+
+
+#define VOLT_OFFSET			0		//CALIBRATE
+#define CURR_OFFSET			0	//CALIBRATE
+#define CURR_REF			3		//reference voltage for CSA, CALIBRATE THIS
+#define cc_hysterisis       0.01	//to prevent quick jumps b/w CC and CV modes
+#define N					100		// moving avg approx uses 100 past samples
 
 #define UNK                 -1
 #define NON_INTR             0
@@ -254,7 +258,7 @@ int main(void)
 
 
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start PWM_HI for Buck
-	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2); //Start PWM_LOW for Buck
+	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); //Start PWM_LOW for Buck
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //Start PWM for FAN
 	HAL_TIM_Base_Start_IT(&htim3);           //Start Interrupt Timer for 3
 	printf("VoltageL.val=%d%c%c%c",0,255,255,255);		//prints voltage to screen	VoltageL.val=0ÿÿÿ
@@ -550,7 +554,7 @@ static void MX_TIM1_Init(void)
   sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
   sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
   sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 5;
+  sBreakDeadTimeConfig.DeadTime = 10;
   sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
   sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
   sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
@@ -1152,26 +1156,25 @@ void max_trans(void){
 
 void PIDsetBuckPWM(void){
 
-
 	if(cvcc_flag == 1){	//if in CV mode
 		pid_error = v_lim - v_sense_avg;
 	}else{			//in CC mode
 		pid_error = i_lim - i_sense_avg;
 	}
-	pwm_val = arm_pid_f32(&PID, pid_error);
+	//pwm_val = arm_pid_f32(&PID, pid_error);
 
-	if(pwm_val > 46)
-		pwm_val = 46;
+	//FOR TESTING
+	pwm_val = i_sense_avg * 30;
+
+	//capture max or min PWM to prevent out of range duty cycle (0-95%)
+	if(pwm_val > 330) //330 is max for 95% duty cycle on PWM_HI
+		pwm_val = 330;
 
 	if(pwm_val < 0)
 		pwm_val = 0;
 
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm_val);
 }
-
-
-
-
 
 
 /* USER CODE END 4 */
