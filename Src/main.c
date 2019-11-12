@@ -133,8 +133,8 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 400;             //proportional gain
-float PID_Ki = 0.001;           //integral gain
+float PID_Kp = 250;             //proportional gain
+float PID_Ki = 0.002;           //integral gain
 float PID_Kd = 0;              //derivative gain
 
 
@@ -280,6 +280,10 @@ int main(void)
 
 		v_lim = User_Voltage_limit/100.0;
 		i_lim = User_Current_limit/100.0;
+
+		//temporary limit hardcoding for PID debug
+		v_lim = 12; 	//V
+		i_lim = 0.5; 	//A
 
 		//user end
 		senseADC();
@@ -1161,10 +1165,10 @@ void PIDsetBuckPWM(void){
 	}else{			//in CC mode
 		pid_error = i_lim - i_sense_avg;
 	}
-	//pwm_val = arm_pid_f32(&PID, pid_error);
+	pwm_val = arm_pid_f32(&PID, pid_error);
 
 	//FOR TESTING
-	pwm_val = i_sense_avg * 30;
+	//pwm_val = i_sense_avg * 30;
 
 	//capture max or min PWM to prevent out of range duty cycle (0-95%)
 	if(pwm_val > 330) //330 is max for 95% duty cycle on PWM_HI
