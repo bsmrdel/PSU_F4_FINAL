@@ -114,8 +114,6 @@ void Error_Handler(void);
 #define Voltage_Decimal_OFF_GPIO_Port GPIOD
 #define Voltage_Decimal_ON_Pin GPIO_PIN_1
 #define Voltage_Decimal_ON_GPIO_Port GPIOD
-#define Max_transient_Reset_OFF_Pin GPIO_PIN_2
-#define Max_transient_Reset_OFF_GPIO_Port GPIOD
 #define Max_transient_Reset_ON_Pin GPIO_PIN_3
 #define Max_transient_Reset_ON_GPIO_Port GPIOD
 #define Current_Encoder_B_Pin GPIO_PIN_4

@@ -43,9 +43,9 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 #define VOLT_DIV_FACTOR		0.0595 	// assuming R1 = 16.4k and R2 = 1k (3V / 0.595 = 50.4)
-									// this is still dependent on resistor tolerances
+// this is still dependent on resistor tolerances
 #define CURR_DIV_FACTOR 	0.5		// CSA gain is 0.5V/A, ref to 3V...
-									// 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
+// 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
 
 
 #define VOLT_OFFSET			0		// CALIBRATE
@@ -92,11 +92,11 @@ int VDecimalCounter = 0;
 int CDecimal = 0;
 int CDecimalCounter = 0;
 int VDecimalOn = 0;
-int VDecimalOff = 0;
+int VDecimalLast = 0;
 int VaState = 0;
 int VbState = 0;
 int CDecimalOn = 0;
-int CDecimalOff = 0;
+int CDecimalLast = 0;
 int CaState = 0;
 int CbState = 0;
 int VaLastState = 0;
@@ -188,8 +188,6 @@ PUTCHAR_PROTOTYPE
 	/* Place your implementation of fputc here */
 	/* e.g. write a character to the USART */
 	HAL_UART_Transmit(&huart3, (uint8_t *)&ch, 1, 100);
-
-
 	return ch;
 }
 
@@ -200,9 +198,12 @@ PUTCHAR_PROTOTYPE
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
 	if( htim -> Instance ==TIM3){
+
 		HAL_GPIO_TogglePin(LD4_GPIO_Port,LD4_Pin);
-		//printf("vd1.val=%d%c%c%c",1,255,255,255);
-		//printtoscreen();
+
+		//printf("VoltageL.val=%d%c%c%c",User_Voltage_limit,255,255,255);
+		printtoscreen();
+
 
 	}
 }
@@ -229,11 +230,11 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
-  PID.Kp = PID_Kp;
-  PID.Ki = PID_Ki;
-  PID.Kd = PID_Kd;
+	PID.Kp = PID_Kp;
+	PID.Ki = PID_Ki;
+	PID.Kd = PID_Kd;
 
-  arm_pid_init_f32(&PID, 1);
+	arm_pid_init_f32(&PID, 1);
 
   /* USER CODE END Init */
 
@@ -261,6 +262,7 @@ int main(void)
 	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); //Start PWM_LOW for Buck
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //Start PWM for FAN
 	HAL_TIM_Base_Start_IT(&htim3);           //Start Interrupt Timer for 3
+
 	printf("VoltageL.val=%d%c%c%c",0,255,255,255);		//prints voltage to screen	VoltageL.val=0ÿÿÿ
 	printf("CurrentL.val=%d%c%c%c",0,255,255,255);		//prints voltage to screen	VoltageL.val=0ÿÿÿ
 	printf("Temp.pco=%d%c%c%c",65535,255,255,255);		//turns temp number black on screen Temp.pco=0ÿÿÿ
@@ -296,7 +298,7 @@ int main(void)
 		PIDsetBuckPWM();	//set new PWM for buck using PID loop
 
 		getTemp();
-		max_trans();  		//Checks and displays max transient current when OE is pressed.
+		//max_trans();  		//Checks and displays max transient current when OE is pressed.
 		FanPWM();
 
     /* USER CODE END WHILE */
@@ -651,9 +653,9 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 48000;
+  htim3.Init.Prescaler = 20000;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 200-1;
+  htim3.Init.Period = 10-1;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -785,11 +787,11 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
   /*Configure GPIO pins : Current_Decimal_OFF_Pin Current_Decimal_ON_Pin Output_Enable_OFF_Pin Output_Enable_ON_Pin 
-                           Voltage_Decimal_OFF_Pin Voltage_Decimal_ON_Pin Max_transient_Reset_OFF_Pin Max_transient_Reset_ON_Pin 
-                           Current_Encoder_B_Pin Current_Encoder_A_Pin */
+                           Voltage_Decimal_OFF_Pin Voltage_Decimal_ON_Pin Max_transient_Reset_ON_Pin Current_Encoder_B_Pin 
+                           Current_Encoder_A_Pin */
   GPIO_InitStruct.Pin = Current_Decimal_OFF_Pin|Current_Decimal_ON_Pin|Output_Enable_OFF_Pin|Output_Enable_ON_Pin 
-                          |Voltage_Decimal_OFF_Pin|Voltage_Decimal_ON_Pin|Max_transient_Reset_OFF_Pin|Max_transient_Reset_ON_Pin 
-                          |Current_Encoder_B_Pin|Current_Encoder_A_Pin;
+                          |Voltage_Decimal_OFF_Pin|Voltage_Decimal_ON_Pin|Max_transient_Reset_ON_Pin|Current_Encoder_B_Pin 
+                          |Current_Encoder_A_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
@@ -847,40 +849,41 @@ void OutputEnable(int error_voltage, int error_current, int error_temp){
 void getVoltage_limit(void){
 
 	VDecimalOn = HAL_GPIO_ReadPin(Voltage_Decimal_ON_GPIO_Port,Voltage_Decimal_ON_Pin);		//read input from PA0 Reads the "current" state of the button
-	VDecimalOff = HAL_GPIO_ReadPin(Voltage_Decimal_OFF_GPIO_Port,Voltage_Decimal_OFF_Pin);	//read input from PA1 Reads the "current" state of the button
+	//VDecimalLast = HAL_GPIO_ReadPin(Voltage_Decimal_OFF_GPIO_Port,Voltage_Decimal_OFF_Pin);	//read input from PA1 Reads the "current" state of the button
 
-	if (VDecimalOn == 0 && VDecimalOff != 0 && VDecimalCounter == 0){	//if button has been pressed once
-		VDecimal = 1;								//start incrementing voltage by 0
-		VDecimalCounter ++;							//increment counter
-		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd4.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-	}
-	else if(VDecimalOn != 0 && VDecimalOff == 0 && VDecimalCounter == 1){	//if button has been pressed twice
-		VDecimal = 10;								//start incrementing voltage by 10
-		VDecimalCounter ++;							//increment counter
-		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd3.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
-	else if(VDecimalOn == 0 && VDecimalOff != 0 && VDecimalCounter == 2){	//if button has been pressed three times
-		VDecimal = 100;								//start incrementing voltage by 100
-		VDecimalCounter ++;							//increment counter
-		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd2.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
-	else if(VDecimalOn != 0 && VDecimalOff == 0 && VDecimalCounter == 3){	//if button has been pressed four times
-		VDecimal = 1000;							//start incrementing voltage by 1000
-		VDecimalCounter = 0;						//reset counter
-		printf("vd1.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
+//	if (VDecimalOn != 0 && VDecimalOn != VDecimalLast && VDecimalCounter == 0){    //if button has been pressed once
+//		VDecimal = 1;								//start incrementing voltage by 0
+//		VDecimalCounter ++;							//increment counter
+//		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd4.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//	}
+//	else if(VDecimalOn != 0 && VDecimalOn != VDecimalLast && VDecimalCounter == 1){	//if button has been pressed twice
+//		VDecimal = 10;								//start incrementing voltage by 10
+//		VDecimalCounter ++;							//increment counter
+//		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd3.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+//	else if(VDecimalOn != 0 && VDecimalOn != VDecimalLast && VDecimalCounter == 2){	//if button has been pressed three times
+//		VDecimal = 100;								//start incrementing voltage by 100
+//		VDecimalCounter ++;							//increment counter
+//		printf("vd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd2.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+//	else if(VDecimalOn != 0 && VDecimalOn != VDecimalLast && VDecimalCounter == 3){	//if button has been pressed four times
+//		VDecimal = 1000;							//start incrementing voltage by 1000
+//		VDecimalCounter = 0;						//reset counter
+//		printf("vd1.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("vd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("vd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+	VDecimalLast = VDecimalOn;
 
 	//VOLTAGE COUNTER
 	VaState = HAL_GPIO_ReadPin(Voltage_Encoder_A_GPIO_Port,Voltage_Encoder_A_Pin);	//read input from PA4 // Reads the "current" state of the outputA
@@ -907,40 +910,41 @@ void getVoltage_limit(void){
 void getCurrent_limit(void){
 
 	CDecimalOn = HAL_GPIO_ReadPin(Current_Decimal_ON_GPIO_Port,Current_Decimal_ON_Pin);		//read input from PA2 Reads the "current" state of the button
-	CDecimalOff = HAL_GPIO_ReadPin(Current_Decimal_OFF_GPIO_Port,Current_Decimal_OFF_Pin);	//read input from PA3 Reads the "current" state of the button
+	//CDecimalLast = HAL_GPIO_ReadPin(Current_Decimal_OFF_GPIO_Port,Current_Decimal_OFF_Pin);	//read input from PA3 Reads the "current" state of the button
 
-	if (CDecimalOn == 0 && CDecimalOff != 0 && CDecimalCounter == 0){	//if button has been pressed once
-		CDecimal = 1;								//start incrementing voltage by 0
-		CDecimalCounter ++;							//increment counter
-		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd4.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-	}
-	else if(CDecimalOn != 0 && CDecimalOff == 0 && CDecimalCounter == 1){	//if button has been pressed twice
-		CDecimal = 10;								//start incrementing voltage by 10
-		CDecimalCounter ++;							//increment counter
-		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd3.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
-	else if(CDecimalOn == 0 && CDecimalOff != 0 && CDecimalCounter == 2){	//if button has been pressed three times
-		CDecimal = 100;								//start incrementing voltage by 100
-		CDecimalCounter ++;							//increment counter
-		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd2.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
-	else if(CDecimalOn != 0 && CDecimalOff == 0 && CDecimalCounter == 3){	//if button has been pressed four times
-		CDecimal = 1000;							//start incrementing voltage by 1000
-		CDecimalCounter = 0;						//reset counter
-		printf("cd1.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
-		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
-	}
+//	if (CDecimalOn != 0 && CDecimalOn != CDecimalLast && CDecimalCounter == 0){	//if button has been pressed once
+//		CDecimal = 1;								//start incrementing voltage by 0
+//		CDecimalCounter ++;							//increment counter
+//		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd4.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//	}
+//	else if(CDecimalOn != 0 && CDecimalOn != CDecimalLast && CDecimalCounter == 1){	//if button has been pressed twice
+//		CDecimal = 10;								//start incrementing voltage by 10
+//		CDecimalCounter ++;							//increment counter
+//		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd3.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+//	else if(CDecimalOn != 0 && CDecimalOn != CDecimalLast && CDecimalCounter == 2){	//if button has been pressed three times
+//		CDecimal = 100;								//start incrementing voltage by 100
+//		CDecimalCounter ++;							//increment counter
+//		printf("cd1.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd2.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+//	else if(CDecimalOn != 0 && CDecimalOn != CDecimalLast && CDecimalCounter == 3){	//if button has been pressed four times
+//		CDecimal = 1000;							//start incrementing voltage by 1000
+//		CDecimalCounter = 0;						//reset counter
+//		printf("cd1.val=%d%c%c%c",1,255,255,255);	//set decimal place indicator
+//		printf("cd2.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd3.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//		printf("cd4.val=%d%c%c%c",0,255,255,255);	//set decimal place indicator
+//	}
+	CDecimalLast = CDecimalOn;
 
 	//CURRENT COUNTER
 	CaState = HAL_GPIO_ReadPin(Current_Encoder_A_GPIO_Port,Current_Encoder_A_Pin);	//read input from PA4 // Reads the "current" state of the outputA
@@ -996,13 +1000,13 @@ void getV (void){
 	voltage = percent_voltage * 3;						//0-3V ADC signal
 	v_sense = voltage / VOLT_DIV_FACTOR;				//0-50V value
 	v_sense_avg = approxMovingAvg(v_sense_avg, v_sense);//take average
-	v_sense_avg_int = (int)(v_sense_avg*100);		//make variable compatible with screen
+	v_sense_avg_int = (int)(v_sense_avg*100);			//make variable compatible with screen
 
-	if (v_sense_avg_int > 3200){					//if voltage is above safe value, return error
-		error_voltage = 1;							//set error as 1 to turn off outputs
+	if (v_sense_avg_int > 3200){						//if voltage is above safe value, return error
+		error_voltage = 1;								//set error as 1 to turn off outputs
 	}
 	else {
-		error_voltage = 0;							//set error to 0 if nothing is wrong
+		error_voltage = 0;								//set error to 0 if nothing is wrong
 	}
 
 	return;
@@ -1017,7 +1021,7 @@ void getI (void){
 	current = CURR_REF - (percent_current * 3);			//0-3V ADC signal
 	i_sense = (current / CURR_DIV_FACTOR) + CURR_OFFSET;//0-3A value
 	i_sense_avg = approxMovingAvg(i_sense_avg, i_sense);//take average
-	i_sense_avg_int = (int)(i_sense_avg*100);		//make variable compatible with screen
+	i_sense_avg_int = (int)(i_sense_avg*100);			//make variable compatible with screen
 
 
 	if (i_sense_avg_int > 300){						//if voltage is above safe value, return error
@@ -1044,18 +1048,18 @@ void getTemp (void){
 	if (farh_average != Lastfarh){											//if the previous and the current state of the temperature are different, that means a Pulse has occurred
 		Lastfarh = farh_average;											//updates the previous state of the temperature with the current state
 		//printf("Temp.val=%d%c%c%c",(int)(farh_average*100)/10,255,255,255);	//prints temperature to screen	temp.val=888ÿÿÿ
-//		if((farh_average >= 100 || farh_average < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
-//			error_temp = 1;													//an error has occurred
-//			printf("Temp.pco=%d%c%c%c",63488,255,255,255);					//turns temp number red on screen button.val=888ÿÿÿ
-//			printf("temptxt.pco=%d%c%c%c",63488,255,255,255);				//turns temp text red on screen button.val=888ÿÿÿ
-//			printf("ftxt.pco=%d%c%c%c",63488,255,255,255);					//turns F text red on screen button.val=888ÿÿÿ
-//		}
-//		else if(farh_average < 100 && farh_average > 0 && error_temp == 1){	//if nothing is wrong and something was wrong before
-//			error_temp = 0;													//an error has not occurred
-//			printf("Temp.pco=%d%c%c%c",65535,255,255,255);					//turns temp number black on screen Temp.pco=0ÿÿÿ
-//			printf("temptxt.pco=%d%c%c%c",65535,255,255,255);				//turns temp text black on screen tempxt.pco=0ÿÿÿ
-//			printf("ftxt.pco=%d%c%c%c",65535,255,255,255);					//turns F text black on screen ftxt.pco=0ÿÿÿ
-//		}
+		//		if((farh_average >= 100 || farh_average < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
+		//			error_temp = 1;													//an error has occurred
+		//			printf("Temp.pco=%d%c%c%c",63488,255,255,255);					//turns temp number red on screen button.val=888ÿÿÿ
+		//			printf("temptxt.pco=%d%c%c%c",63488,255,255,255);				//turns temp text red on screen button.val=888ÿÿÿ
+		//			printf("ftxt.pco=%d%c%c%c",63488,255,255,255);					//turns F text red on screen button.val=888ÿÿÿ
+		//		}
+		//		else if(farh_average < 100 && farh_average > 0 && error_temp == 1){	//if nothing is wrong and something was wrong before
+		//			error_temp = 0;													//an error has not occurred
+		//			printf("Temp.pco=%d%c%c%c",65535,255,255,255);					//turns temp number black on screen Temp.pco=0ÿÿÿ
+		//			printf("temptxt.pco=%d%c%c%c",65535,255,255,255);				//turns temp text black on screen tempxt.pco=0ÿÿÿ
+		//			printf("ftxt.pco=%d%c%c%c",65535,255,255,255);					//turns F text black on screen ftxt.pco=0ÿÿÿ
+		//		}
 	}
 	return;
 }
@@ -1068,6 +1072,7 @@ void printtoscreen(void){
 	printf("CurrentO.val=%d%c%c%c",i_sense_avg_int,255,255,255);
 	printf("Watts.val=%d%c%c%c",Watts,255,255,255);
 	printf("Temp.val=%d%c%c%c",(int)(farh_average*100)/10,255,255,255);	//prints temperature to screen	temp.val=888ÿÿÿ
+	//HAL_GPIO_TogglePin(LD4_GPIO_Port,LD4_Pin);
 	return;
 }
 
@@ -1116,18 +1121,13 @@ void getMode(void){
 
 	// turn on top STM32F0disc LED for CV, bottom for CC mode for debug
 	if(cvcc_flag == 1){
-		//dev board LEDS
-		//		HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_RESET);
-		//		HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_SET);
 		//breadboard LEDS
 		HAL_GPIO_WritePin(CC_LED_GPIO_Port, CC_LED_Pin, GPIO_PIN_RESET);
 		HAL_GPIO_WritePin(CV_LED_GPIO_Port, CV_LED_Pin, GPIO_PIN_SET);
 	}
 	else
 	{
-		//dev board LEDs
-		//		HAL_GPIO_WritePin(LD3_GPIO_Port, LD3_Pin, GPIO_PIN_SET);
-		//		HAL_GPIO_WritePin(LD4_GPIO_Port, LD4_Pin, GPIO_PIN_RESET);
+
 		// breadboard LEDS
 		HAL_GPIO_WritePin(CC_LED_GPIO_Port, CC_LED_Pin, GPIO_PIN_SET);
 		HAL_GPIO_WritePin(CV_LED_GPIO_Port, CV_LED_Pin, GPIO_PIN_RESET);
@@ -1137,23 +1137,23 @@ void getMode(void){
 
 void max_trans(void){
 
-	int ResetOn  = HAL_GPIO_ReadPin(Max_transient_Reset_ON_GPIO_Port,Max_transient_Reset_ON_Pin);	//read input from PB0 Reads the "current" state of the button
-	int ResetOff = HAL_GPIO_ReadPin(Max_transient_Reset_OFF_GPIO_Port,Max_transient_Reset_OFF_Pin);	//read input from PB1 Reads the "current" state of the button
-
-	if (ResetOn > ResetOff){										//if button has been pressed once
-		if (i_sense_avg_int > max_trans_current){					//if the previous and the current state of the outputA are different, that means a Pulse has occurred
-			max_trans_current = i_sense_avg_int;					//updates the previous state of the average current sense with the current state
-			printf("Trans.val=%d%c%c%c",max_trans_current,255,255,255);		//prints Maximum Current Transient to screen will have to calibrate and multiply by 100
-			printf("TransON.val=%d%c%c%c",1,255,255,255);					//prints Maximum Current Transient is reading to screen.
-			maxreset = 1;
-		}
-	}
-	else if(ResetOn < ResetOff && maxreset == 1){									//if button has been pressed twice
-		printf("Trans.val=%d%c%c%c",max_trans_current,255,255,255);			//prints Maximum Current Transient to screen will have to calibrate and multiply by 100
-		printf("TransON.val=%d%c%c%c",0,255,255,255);						//prints Maximum Current Transient is not reading to screen.
-		max_trans_current = 0;
-		maxreset = 0;
-	}
+//	int ResetOn  = HAL_GPIO_ReadPin(Max_transient_Reset_ON_GPIO_Port,Max_transient_Reset_ON_Pin);	//read input from PB0 Reads the "current" state of the button
+//	int ResetOff = HAL_GPIO_ReadPin(Max_transient_Reset_OFF_GPIO_Port,Max_transient_Reset_OFF_Pin);	//read input from PB1 Reads the "current" state of the button
+//
+//	if (ResetOn > ResetOff){										//if button has been pressed once
+//		if (i_sense_avg_int > max_trans_current){					//if the previous and the current state of the outputA are different, that means a Pulse has occurred
+//			max_trans_current = i_sense_avg_int;					//updates the previous state of the average current sense with the current state
+//			printf("Trans.val=%d%c%c%c",max_trans_current,255,255,255);		//prints Maximum Current Transient to screen will have to calibrate and multiply by 100
+//			printf("TransON.val=%d%c%c%c",1,255,255,255);					//prints Maximum Current Transient is reading to screen.
+//			maxreset = 1;
+//		}
+//	}
+//	else if(ResetOn < ResetOff && maxreset == 1){									//if button has been pressed twice
+//		printf("Trans.val=%d%c%c%c",max_trans_current,255,255,255);			//prints Maximum Current Transient to screen will have to calibrate and multiply by 100
+//		printf("TransON.val=%d%c%c%c",0,255,255,255);						//prints Maximum Current Transient is not reading to screen.
+//		max_trans_current = 0;
+//		maxreset = 0;
+//	}
 }
 
 void PIDsetBuckPWM(void){
