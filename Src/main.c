@@ -52,7 +52,7 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 #define CURR_OFFSET			0		// CALIBRATE
 #define CURR_REF			3		// reference voltage for CSA, CALIBRATE THIS
 #define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
-#define N					100		// moving avg approx uses 100 past samples
+#define N					1000		// moving avg approx uses 100 past samples
 
 #define UNK                 -1
 #define NON_INTR             0
@@ -202,7 +202,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 		HAL_GPIO_TogglePin(LD4_GPIO_Port,LD4_Pin);
 
 		//printf("VoltageL.val=%d%c%c%c",User_Voltage_limit,255,255,255);
-		printtoscreen();
+		//printtoscreen();
 
 
 	}
@@ -277,21 +277,21 @@ int main(void)
 	{
 		//User Interface
 		OutputEnable(error_voltage,error_current,error_temp);	//Output enable function, error parameters can be used to send error signal to disable output
-		getVoltage_limit();
-		getCurrent_limit();
+		//getVoltage_limit();
+		//getCurrent_limit();
 
 		v_lim = User_Voltage_limit/100.0;
 		i_lim = User_Current_limit/100.0;
 
 		//temporary limit hardcoding for PID debug
-		//v_lim = 12; 	//V
-		//i_lim = 0.5; 	//A
+		v_lim = 12; 	//V
+		i_lim = 0.5; 	//A
 
 		//user end
 		senseADC();
 		getV();
 		getI();
-		Print_Power();
+		//Print_Power();
 		rload = v_sense_avg / i_sense_avg;
 
 		getMode();			//1 = Const V, 0 = Const C mode
@@ -1169,8 +1169,8 @@ void PIDsetBuckPWM(void){
 	//pwm_val = i_sense_avg * 30;
 
 	//capture max or min PWM to prevent out of range duty cycle (0-95%)
-	if(pwm_val > 330) //330 is max for 95% duty cycle on PWM_HI
-		pwm_val = 330;
+	if(pwm_val > 150) //330 is max for 95% duty cycle on PWM_HI
+		pwm_val = 150;
 
 	if(pwm_val < 0)
 		pwm_val = 0;
