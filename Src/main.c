@@ -49,8 +49,8 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 
 
 #define VOLT_OFFSET			0		// CALIBRATE
-#define CURR_OFFSET			0		// CALIBRATE
-#define CURR_REF			3		// reference voltage for CSA, CALIBRATE THIS
+#define CURR_OFFSET			-0.2		// CALIBRATE
+#define CURR_REF			2.959		// reference voltage for CSA, CALIBRATE THIS
 #define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
 #define N					1000		// moving avg approx uses 100 past samples
 
@@ -133,8 +133,8 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 300;             //proportional gain
-float PID_Ki = 0.002;           //integral gain
+float PID_Kp = 5;             //proportional gain
+float PID_Ki = 100;           //integral gain
 float PID_Kd = 0;              //derivative gain
 
 
@@ -1017,8 +1017,8 @@ void getI (void){
 	float current = 0;              					//0-3V conversion for voltage
 	float percent_current = 0;      					//%V from 0-3
 
-	percent_current = ((float) raw_current) / 4092;
-	current = CURR_REF - (percent_current * 3);			//0-3V ADC signal
+	percent_current = ((float) raw_current) / 4092;		//raw percent voltage 0-3
+	current = 2*(percent_current * 3) - CURR_REF;					//0-3V ADC signal
 	i_sense = (current / CURR_DIV_FACTOR) + CURR_OFFSET;//0-3A value
 	i_sense_avg = approxMovingAvg(i_sense_avg, i_sense);//take average
 	i_sense_avg_int = (int)(i_sense_avg*100);			//make variable compatible with screen
@@ -1167,10 +1167,19 @@ void PIDsetBuckPWM(void){
 
 	//FOR TESTING
 	//pwm_val = i_sense_avg * 30;
+	/* 10% = 35
+	 * 20% = 70
+	 * 30% = 105
+	 * 40% = 140
+	 * 50% = 175
+	 *
+	 * 95% = 330
+	 * 100% = 350
+	 */
 
 	//capture max or min PWM to prevent out of range duty cycle (0-95%)
-	if(pwm_val > 150) //330 is max for 95% duty cycle on PWM_HI
-		pwm_val = 150;
+	if(pwm_val > 105) //330 is max for 95% duty cycle on PWM_HI
+		pwm_val = 105;
 
 	if(pwm_val < 0)
 		pwm_val = 0;
