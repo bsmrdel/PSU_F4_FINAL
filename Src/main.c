@@ -117,6 +117,7 @@ int max_trans_current = 0;
 int raw_voltage = 0;            //12b value from adc for vsense
 int raw_current = 0;            //12b value from adc for isense
 float pwm_val = 0;				//PWM value for duty cycle adjustment to gate driver
+float pwm_val_avg = 0;
 float v_sense = 0;				//buck output voltage sense
 float i_sense = 0;				//buck output current sense
 float rload = 0;            	//buck calculated load from v_sense & i_sense
@@ -133,9 +134,9 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 5;             //proportional gain
-float PID_Ki = 100;           //integral gain
-float PID_Kd = 0;              //derivative gain
+float PID_Kp = 50;             //proportional gain
+float PID_Ki = 0.0006;           //integral gain
+float PID_Kd = 200;              //derivative gain
 
 
 /* USER CODE END PV */
@@ -284,8 +285,8 @@ int main(void)
 		i_lim = User_Current_limit/100.0;
 
 		//temporary limit hardcoding for PID debug
-		v_lim = 12; 	//V
-		i_lim = 0.5; 	//A
+		v_lim = 8; 	//V
+		i_lim = 0.4; 	//A
 
 		//user end
 		senseADC();
@@ -1164,7 +1165,7 @@ void PIDsetBuckPWM(void){
 		pid_error = i_lim - i_sense_avg;
 	}
 	pwm_val = arm_pid_f32(&PID, pid_error);
-
+	pwm_val_avg = approxMovingAvg(pwm_val_avg, pwm_val);
 	//FOR TESTING
 	//pwm_val = i_sense_avg * 30;
 	/* 10% = 35
@@ -1178,13 +1179,13 @@ void PIDsetBuckPWM(void){
 	 */
 
 	//capture max or min PWM to prevent out of range duty cycle (0-95%)
-	if(pwm_val > 105) //330 is max for 95% duty cycle on PWM_HI
-		pwm_val = 105;
+	if(pwm_val_avg > 105) //330 is max for 95% duty cycle on PWM_HI
+		pwm_val_avg = 105; //28%
 
-	if(pwm_val < 0)
-		pwm_val = 0;
+	if(pwm_val_avg < 0)
+		pwm_val_avg = 0;
 
-	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm_val);
+	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm_val_avg);
 }
 
 
