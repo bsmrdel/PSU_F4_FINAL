@@ -42,15 +42,15 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define VOLT_DIV_FACTOR		0.0595 	// assuming R1 = 16.4k and R2 = 1k (3V / 0.595 = 50.4)
+#define VOLT_DIV_FACTOR		0.0495 	// assuming R1 = 16.4k and R2 = 1k (3V / 0.595 = 50.4)
 // this is still dependent on resistor tolerances
 #define CURR_DIV_FACTOR 	0.5		// CSA gain is 0.5V/A, ref to 3V...
 // 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
 
 
-#define VOLT_OFFSET			0		// CALIBRATE
-#define CURR_OFFSET			-0.2		// CALIBRATE
-#define CURR_REF			2.959		// reference voltage for CSA, CALIBRATE THIS
+#define VOLT_OFFSET			-0.4		// CALIBRATE
+#define CURR_OFFSET			-0.12		// CALIBRATE
+#define CURR_REF			2.048		// reference voltage for CSA, CALIBRATE THIS
 #define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
 #define N					1000		// moving avg approx uses 100 past samples
 
@@ -110,7 +110,7 @@ int Last_i_sense_avg = 0;
 int Lastfarh = 0;
 int maxreset = 0;
 
-int raw_tempsense_value = 0; //12b value from adc for TempSense
+int raw_tempsense_value = 0; 	//12b value from adc for TempSense
 float farh = 0;
 int max_trans_current = 0;
 
@@ -134,9 +134,9 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 50;             //proportional gain
-float PID_Ki = 0.0006;           //integral gain
-float PID_Kd = 200;              //derivative gain
+float PID_Kp = 50;             	//proportional gain
+float PID_Ki = 0.0006;         	//integral gain
+float PID_Kd = 200;             //derivative gain
 
 
 /* USER CODE END PV */
@@ -285,8 +285,8 @@ int main(void)
 		i_lim = User_Current_limit/100.0;
 
 		//temporary limit hardcoding for PID debug
-		v_lim = 8; 	//V
-		i_lim = 0.4; 	//A
+		v_lim = 5; 	//V
+		i_lim = 0.3; 	//A
 
 		//user end
 		senseADC();
@@ -1019,7 +1019,7 @@ void getI (void){
 	float percent_current = 0;      					//%V from 0-3
 
 	percent_current = ((float) raw_current) / 4092;		//raw percent voltage 0-3
-	current = 2*(percent_current * 3) - CURR_REF;					//0-3V ADC signal
+	current = (percent_current * 3) - CURR_REF;					//0-3V ADC signal
 	i_sense = (current / CURR_DIV_FACTOR) + CURR_OFFSET;//0-3A value
 	i_sense_avg = approxMovingAvg(i_sense_avg, i_sense);//take average
 	i_sense_avg_int = (int)(i_sense_avg*100);			//make variable compatible with screen
