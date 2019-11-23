@@ -74,14 +74,10 @@ void Error_Handler(void);
 #define Isense_GPIO_Port GPIOA
 #define Tempsense_Pin GPIO_PIN_3
 #define Tempsense_GPIO_Port GPIOA
-#define BuckPWM_LO_Pin GPIO_PIN_7
-#define BuckPWM_LO_GPIO_Port GPIOA
 #define BOOT1_Pin GPIO_PIN_2
 #define BOOT1_GPIO_Port GPIOB
 #define Overvoltage_SFTY_Pin GPIO_PIN_7
 #define Overvoltage_SFTY_GPIO_Port GPIOE
-#define BuckPWM_HI_Pin GPIO_PIN_9
-#define BuckPWM_HI_GPIO_Port GPIOE
 #define Output_enable_LED_Pin GPIO_PIN_13
 #define Output_enable_LED_GPIO_Port GPIOE
 #define CC_LED_Pin GPIO_PIN_14
