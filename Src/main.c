@@ -49,8 +49,8 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 
 
 #define VOLT_OFFSET			-0.4		// CALIBRATE
-#define CURR_OFFSET			-0.12		// CALIBRATE
-#define CURR_REF			2.048		// reference voltage for CSA, CALIBRATE THIS
+#define CURR_OFFSET			0		// CALIBRATE
+#define CURR_REF			2.95		// reference voltage for CSA, CALIBRATE THIS
 #define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
 #define N					1000		// moving avg approx uses 100 past samples
 
@@ -129,7 +129,7 @@ float v_lim = 0;           		//user selected voltage limit @elliott made changes
 float v_sense_avg = 0;			//moving average val of v_sense
 float i_sense_avg = 0;			//moving average val of i_sense
 float farh_average = 0;
-
+float current = 0;              					//0-3V conversion for voltage
 int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
@@ -260,7 +260,7 @@ int main(void)
 
 
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); //Start PWM_HI for Buck
-	HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); //Start PWM_LOW for Buck
+	//HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); //Start PWM_LOW for Buck
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); //Start PWM for FAN
 	HAL_TIM_Base_Start_IT(&htim3);           //Start Interrupt Timer for 3
 
@@ -293,7 +293,7 @@ int main(void)
 		getV();
 		getI();
 		//Print_Power();
-		rload = v_sense_avg / i_sense_avg;
+		//rload = v_sense_avg / i_sense_avg;
 
 		getMode();			//1 = Const V, 0 = Const C mode
 		PIDsetBuckPWM();	//set new PWM for buck using PID loop
@@ -515,8 +515,6 @@ static void MX_TIM1_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-  TIM_BreakDeadTimeConfigTypeDef sBreakDeadTimeConfig = {0};
 
   /* USER CODE BEGIN TIM1_Init 1 */
 
@@ -537,42 +535,15 @@ static void MX_TIM1_Init(void)
   {
     Error_Handler();
   }
-  if (HAL_TIM_PWM_Init(&htim1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCNPolarity = TIM_OCNPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  sConfigOC.OCIdleState = TIM_OCIDLESTATE_RESET;
-  sConfigOC.OCNIdleState = TIM_OCNIDLESTATE_RESET;
-  if (HAL_TIM_PWM_ConfigChannel(&htim1, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sBreakDeadTimeConfig.OffStateRunMode = TIM_OSSR_DISABLE;
-  sBreakDeadTimeConfig.OffStateIDLEMode = TIM_OSSI_DISABLE;
-  sBreakDeadTimeConfig.LockLevel = TIM_LOCKLEVEL_OFF;
-  sBreakDeadTimeConfig.DeadTime = 10;
-  sBreakDeadTimeConfig.BreakState = TIM_BREAK_DISABLE;
-  sBreakDeadTimeConfig.BreakPolarity = TIM_BREAKPOLARITY_HIGH;
-  sBreakDeadTimeConfig.AutomaticOutput = TIM_AUTOMATICOUTPUT_DISABLE;
-  if (HAL_TIMEx_ConfigBreakDeadTime(&htim1, &sBreakDeadTimeConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
-  HAL_TIM_MspPostInit(&htim1);
 
 }
 
@@ -837,6 +808,10 @@ void OutputEnable(int error_voltage, int error_current, int error_temp){
 		OutputOff = 1;	//make output turn off
 	}
 
+	//testing
+	OutputOn = 1;	//make output turn off
+	OutputOff = 0;	//make output turn off
+
 	if (OutputOn == 0 && OutputOff != 0 && OutputCounter == 0){		//if button has been pressed once
 		OutputCounter ++;
 		HAL_GPIO_WritePin(Output_enable_LED_GPIO_Port,Output_enable_LED_Pin , GPIO_PIN_RESET); //turn off output enable led
@@ -1015,11 +990,11 @@ void getV (void){
 
 void getI (void){
 
-	float current = 0;              					//0-3V conversion for voltage
+
 	float percent_current = 0;      					//%V from 0-3
 
 	percent_current = ((float) raw_current) / 4092;		//raw percent voltage 0-3
-	current = (percent_current * 3) - CURR_REF;					//0-3V ADC signal
+	current = 2*(percent_current * 3) - CURR_REF;					//0-3V ADC signal
 	i_sense = (current / CURR_DIV_FACTOR) + CURR_OFFSET;//0-3A value
 	i_sense_avg = approxMovingAvg(i_sense_avg, i_sense);//take average
 	i_sense_avg_int = (int)(i_sense_avg*100);			//make variable compatible with screen
@@ -1185,6 +1160,8 @@ void PIDsetBuckPWM(void){
 	if(pwm_val_avg < 0)
 		pwm_val_avg = 0;
 
+	//hardcode to test 12V line
+	//pwm_val_avg	= 0;
 	__HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, pwm_val_avg);
 }
 
