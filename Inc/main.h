@@ -68,10 +68,6 @@ void Error_Handler(void);
 #define OTG_FS_PowerSwitchOn_GPIO_Port GPIOC
 #define B1_Pin GPIO_PIN_0
 #define B1_GPIO_Port GPIOA
-#define Vsense_Pin GPIO_PIN_1
-#define Vsense_GPIO_Port GPIOA
-#define Isense_Pin GPIO_PIN_2
-#define Isense_GPIO_Port GPIOA
 #define Tempsense_Pin GPIO_PIN_3
 #define Tempsense_GPIO_Port GPIOA
 #define BOOT1_Pin GPIO_PIN_2
@@ -110,6 +106,8 @@ void Error_Handler(void);
 #define Voltage_Decimal_OFF_GPIO_Port GPIOD
 #define Voltage_Decimal_ON_Pin GPIO_PIN_1
 #define Voltage_Decimal_ON_GPIO_Port GPIOD
+#define Max_transient_Reset_OFF_Pin GPIO_PIN_2
+#define Max_transient_Reset_OFF_GPIO_Port GPIOD
 #define Max_transient_Reset_ON_Pin GPIO_PIN_3
 #define Max_transient_Reset_ON_GPIO_Port GPIOD
 #define Current_Encoder_B_Pin GPIO_PIN_4
