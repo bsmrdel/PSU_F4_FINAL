@@ -48,9 +48,9 @@ arm_pid_instance_f32 PID;     //ARM PID instance float 32b
 // 0A -> 3V, 1A -> 2.5V, 2A -> 2V, 6A -> 0V
 
 
-#define VOLT_OFFSET			0.1		// CALIBRATE
+#define VOLT_OFFSET			-0.1		// CALIBRATE
 #define CURR_OFFSET			0		// CALIBRATE
-#define CURR_REF			2.935		// reference voltage for CSA, CALIBRATE THIS
+#define CURR_REF			3		// reference voltage for CSA, CALIBRATE THIS
 #define cc_hysterisis       0.01	// to prevent quick jumps b/w CC and CV modes
 #define N					1000		// moving avg approx uses 100 past samples
 
@@ -68,6 +68,8 @@ ADC_HandleTypeDef hadc3;
 
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim9;
 
 UART_HandleTypeDef huart3;
 
@@ -121,6 +123,10 @@ char* data = "Hello World\n\r";
 char tx[25];
 int count = 0;
 
+//RGB LED
+int i = 0;
+int up = 0;
+
 int raw_tempsense_value = 0; 	//12b value from adc for TempSense
 float farh = 0;
 int max_trans_current = 0;
@@ -145,9 +151,9 @@ int v_sense_avg_int = 0;
 int i_sense_avg_int = 0;
 int cvcc_flag = 0;				//constant voltage = 1, constant current = 0 (modes of operation)
 
-float PID_Kp = 50;             	//proportional gain
+float PID_Kp = 10;             	//proportional gain
 float PID_Ki = 0.0006;         	//integral gain
-float PID_Kd = 200;             //derivative gain
+float PID_Kd = 300;             //derivative gain
 
 
 /* USER CODE END PV */
@@ -161,6 +167,8 @@ static void MX_TIM2_Init(void);
 static void MX_ADC2_Init(void);
 static void MX_ADC3_Init(void);
 static void MX_USART3_UART_Init(void);
+static void MX_TIM4_Init(void);
+static void MX_TIM9_Init(void);
 /* USER CODE BEGIN PFP */
 
 void OutputEnable(int error_voltage, int error_current, int error_temp);
@@ -236,21 +244,21 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){	//Print Function
 	case 15:
 		HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "Temp.val=%d%c%c%c",farh_avg_int,255,255,255));
 		break;
-//	case 16:
-//		if(error_temp == 1){
-//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "Temp.pco=%d%c%c%c",63488,255,255,255));	//turns temp number red on screen
-//		}
-//		break;
-//	case 17:
-//		if(error_temp == 1){
-//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "temptxt.pco=%d%c%c%c",63488,255,255,255));//turns temp text red on screen
-//		}
-//		break;
-//	case 18:
-//		if(error_temp == 1){
-//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "ftxt.pco=%d%c%c%c",63488,255,255,255));	//turns F text red on screen
-//		}
-//		break;
+		//	case 16:
+		//		if(error_temp == 1){
+		//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "Temp.pco=%d%c%c%c",63488,255,255,255));	//turns temp number red on screen
+		//		}
+		//		break;
+		//	case 17:
+		//		if(error_temp == 1){
+		//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "temptxt.pco=%d%c%c%c",63488,255,255,255));//turns temp text red on screen
+		//		}
+		//		break;
+		//	case 18:
+		//		if(error_temp == 1){
+		//			HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "ftxt.pco=%d%c%c%c",63488,255,255,255));	//turns F text red on screen
+		//		}
+		//		break;
 	}
 	count++;
 }
@@ -259,7 +267,24 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){	//Print Function
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){	//RGB LED Interrupt
 
+	if( htim -> Instance ==TIM4){	//Fade red and blue
+		if(i<2){
+			up = 1;
+		}
+		if(i>100){
+			up = 0;
+		}
+		if(up == 1){
+			i++;
+		}
+		if(up == 0){
+			i--;
+		}
+		__HAL_TIM_SET_COMPARE(&htim9, TIM_CHANNEL_1, i);	//
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -303,12 +328,18 @@ int main(void)
   MX_ADC2_Init();
   MX_ADC3_Init();
   MX_USART3_UART_Init();
+  MX_TIM4_Init();
+  MX_TIM9_Init();
   /* USER CODE BEGIN 2 */
 	HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1); 		//Start PWM_HI for Buck
 	//HAL_TIMEx_PWMN_Start(&htim1, TIM_CHANNEL_1); 	//Start PWM_LOW for Buck
 	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1); 		//Start PWM for FAN
 	//	HAL_TIM_Base_Start_IT(&htim3);           	//Start Interrupt Timer for 3
 	HAL_UART_Transmit_IT(&huart3, (uint8_t *)data, 16);	//Begin Printing
+
+	//RGB LED strip
+	HAL_TIM_PWM_Start(&htim9, TIM_CHANNEL_1);
+	HAL_TIM_Base_Start_IT(&htim4);           //Start Interrupt Timer for 4
 
   /* USER CODE END 2 */
 
@@ -636,9 +667,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 28000-1;
+  htim2.Init.Prescaler = 980-1;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 50-1;
+  htim2.Init.Period = 100-1;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -672,6 +703,103 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 2 */
   HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
+  * @brief TIM4 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM4_Init(void)
+{
+
+  /* USER CODE BEGIN TIM4_Init 0 */
+
+  /* USER CODE END TIM4_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM4_Init 1 */
+
+  /* USER CODE END TIM4_Init 1 */
+  htim4.Instance = TIM4;
+  htim4.Init.Prescaler = 250-1;
+  htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim4.Init.Period = 100-1;
+  htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim4.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim4) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim4, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim4, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM4_Init 2 */
+
+  /* USER CODE END TIM4_Init 2 */
+
+}
+
+/**
+  * @brief TIM9 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM9_Init(void)
+{
+
+  /* USER CODE BEGIN TIM9_Init 0 */
+
+  /* USER CODE END TIM9_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM9_Init 1 */
+
+  /* USER CODE END TIM9_Init 1 */
+  htim9.Instance = TIM9;
+  htim9.Init.Prescaler = 20-1;
+  htim9.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim9.Init.Period = 100-1;
+  htim9.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim9.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim9) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim9, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim9) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 50;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim9, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM9_Init 2 */
+
+  /* USER CODE END TIM9_Init 2 */
+  HAL_TIM_MspPostInit(&htim9);
 
 }
 
@@ -734,8 +862,8 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOD, LD4_Pin|LD3_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PE5 PE6 Overvoltage_SFTY_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6|Overvoltage_SFTY_Pin;
+  /*Configure GPIO pins : PE6 Overvoltage_SFTY_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_6|Overvoltage_SFTY_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
@@ -1018,10 +1146,10 @@ void getTemp (void){
 	farh_avg = approxMovingAvg(farh_avg,farh);		//finds average of temperature
 	farh_avg_int = (int)(farh_avg);					//make variable compatible with screen
 
-	if((farh_avg_int >= 1000 || farh_avg_int < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
+	if((farh_avg_int >= 800 || farh_avg_int < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
 		error_temp = 1;													//an error has occurred
 	}
-	else if(farh_avg_int < 1000 && farh_avg_int > 0 && error_temp == 1){//if nothing is wrong and something was wrong before
+	else if(farh_avg_int < 800 && farh_avg_int > 0 && error_temp == 1){//if nothing is wrong and something was wrong before
 		error_temp = 0;													//an error has not occurred
 		//					printf("Temp.pco=%d%c%c%c",65535,255,255,255);					//turns temp number white on screen Temp.pco=0ÿÿÿ
 		//					printf("temptxt.pco=%d%c%c%c",65535,255,255,255);				//turns temp text white on screen tempxt.pco=0ÿÿÿ
@@ -1034,11 +1162,11 @@ void FanPWM (void){
 
 	float fan_duty=0;
 
-	if(farh>80){
-		fan_duty =95/2.0;
+	if(farh_avg_int>800){
+		fan_duty = 80;
 	}
 	else{
-		fan_duty = 30/2.0;
+		fan_duty = 30;
 	}
 
 	__HAL_TIM_SET_COMPARE(&htim2,TIM_CHANNEL_1,fan_duty);
@@ -1113,6 +1241,11 @@ void PIDsetBuckPWM(void){
 	}else{			//in CC mode
 		pid_error = i_lim - i_sense_avg;
 	}
+
+	if(OutputOn == 0){
+		pid_error = 0; //do not accumulate error if output is disabled via OE button
+	}
+
 	pwm_val = arm_pid_f32(&PID, pid_error);
 	pwm_val_avg = approxMovingAvg(pwm_val_avg, pwm_val);
 	//FOR TESTING
