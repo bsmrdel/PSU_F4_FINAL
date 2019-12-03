@@ -1146,10 +1146,10 @@ void getTemp (void){
 	farh_avg = approxMovingAvg(farh_avg,farh);		//finds average of temperature
 	farh_avg_int = (int)(farh_avg);					//make variable compatible with screen
 
-	if((farh_avg_int >= 800 || farh_avg_int < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
+	if((farh_avg_int >= 1000 || farh_avg_int < 0) && error_temp == 0){	//if temperature rises above 100 F, alert user.
 		error_temp = 1;													//an error has occurred
 	}
-	else if(farh_avg_int < 800 && farh_avg_int > 0 && error_temp == 1){//if nothing is wrong and something was wrong before
+	else if(farh_avg_int < 1000 && farh_avg_int > 0 && error_temp == 1){//if nothing is wrong and something was wrong before
 		error_temp = 0;													//an error has not occurred
 		//					printf("Temp.pco=%d%c%c%c",65535,255,255,255);					//turns temp number white on screen Temp.pco=0ÿÿÿ
 		//					printf("temptxt.pco=%d%c%c%c",65535,255,255,255);				//turns temp text white on screen tempxt.pco=0ÿÿÿ
