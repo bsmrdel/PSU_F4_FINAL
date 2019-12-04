@@ -198,6 +198,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){	//Print Function
 	{
 	case 0:
 		HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "vd1.val=%d%c%c%c",vd1,255,255,255));
+		//HAL_GPIO_TogglePin(PA5);
 		break;
 	case 1:
 		HAL_UART_Transmit_IT(&huart3, (uint8_t *)tx, sprintf(tx, "vd2.val=%d%c%c%c",vd2,255,255,255));
@@ -857,6 +858,9 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_WritePin(OTG_FS_PowerSwitchOn_GPIO_Port, OTG_FS_PowerSwitchOn_Pin, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(TEST_GPIO_Port, TEST_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOE, Output_enable_LED_Pin|CC_LED_Pin|CV_LED_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -880,6 +884,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : TEST_Pin */
+  GPIO_InitStruct.Pin = TEST_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(TEST_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : BOOT1_Pin */
   GPIO_InitStruct.Pin = BOOT1_Pin;
